@@ -1,0 +1,25 @@
+{
+  "name": "receiver",
+  "version": "0.0.1",
+  "description": "cloud function to collect data from GET and POST requests and publish to coresponding pubsub topic",
+  "main": "index.js",
+  "scripts": {
+    "start": "functions-framework --target=collector"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/meshr-org/frontend.git"
+  },
+  "author": "robert sahlin",
+  "license": "BSL 2.0",
+  "bugs": {
+    "url": "https://github.com/meshr-org/frontend/issues"
+  },
+  "homepage": "https://github.com/meshr-org/frontend#readme",
+  "dependencies": {
+    "@google-cloud/functions-framework": "^1.5.1",
+    "@google-cloud/pubsub": "1.3.0",
+    "cors": "^2.8.5",
+    "uuid": "^3.4.0"
+  }
+}

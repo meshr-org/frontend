@@ -1,0 +1,9 @@
+runtime: nodejs
+env: flex
+
+# [START gae_flex_pubsub_yaml]
+env_variables:
+  TOPIC: 'tmp'
+  ALLOW_ORIGIN: '*'
+  PLATFORM: 'AE'
+# [END gae_flex_pubsub_yaml]
