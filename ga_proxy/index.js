@@ -19,6 +19,7 @@ const TRANSPARENT_GIF_BUFFER = Buffer.from('R0lGODlhAQABAIAAAP///wAAACwAAAAAAQAB
 
 //const util = require('util');
 const uuidv4 = require('uuid/v4');
+const anonymize = require('ip-anonymize');
 
 const express = require('express');
 var cors = require('cors');
@@ -49,8 +50,11 @@ exports.ga_proxy = app;
 
 async function publish(req, res){
     var beacon = {};
-    beacon.payload = (Object.keys(req.body).length !== 0) ? req.body : req.query;
-    beacon.headers = req.headers;
+    beacon.body = req.body;
+    beacon.query = req.query;
+    //beacon.headers = req.headers;
+    beacon.headers = ['x-forwarded-for', 'user-agent','x-appengine-city','x-appengine-citylatlong','x-appengine-country','x-appengine-region'].reduce(function(o, k) { o[k] = req.headers[k]; return o; }, {});
+    beacon.headers['x-forwarded-for'] = anonymize(beacon.headers['x-forwarded-for']);
     var attributes = {
         property : req.params.propertyId,
         topic : mainTopic,
