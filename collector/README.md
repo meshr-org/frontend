@@ -11,7 +11,7 @@ curl localhost:8080/keepalive
 curl --header "Content-Type: application/json" \
   --request POST \
   --data '{"name": "testCookie", "value": "testValue", "options": {"domain": "domain", "maxAge": 6000}}' \
-  http://localhost:8080/namespace/com.google.analytics.v1/name/Hit?api_key=123&headers=user-agent,host
+  "http://localhost:8080/namespace/com.google.analytics.v1/name/Hit?api_key=123&headers=user-agent,host"
 
 curl --header "Content-Type: application/json" \
   --request POST \

@@ -45,7 +45,8 @@ var corsOptionsDelegate = function (req, callback) {
 // Pre-flight
 app.options('*', cors(corsOptionsDelegate));
 // Routing. ex. /namespace/com.google.analytics.v1/name/Hit -> topic = com-google-analytics-v1-hit-collector
-app.post('/namespace/:namespace/name/:name', cors(corsOptionsDelegate), apiPost);
+//app.post('/namespace/:namespace/name/:name', cors(corsOptionsDelegate), apiPost);
+app.post('/namespace/:namespace(*)/name/:name/', apiPost);
 app.get('/headers', cors(corsOptionsDelegate), apiHeaders);
 app.get('/keepalive', cors(corsOptionsDelegate), apiKeepAlive);
 
@@ -53,15 +54,16 @@ app.get('/keepalive', cors(corsOptionsDelegate), apiKeepAlive);
 exports.collector = app;
 
 async function publish(req, res){
-    var topic = [req.params.namespace.concat('.', req.params.name)];
+    var topic = req.params.namespace.concat('.', req.params.name);
+    var topics =[topic];
     if(req.query.backup) topics.push(req.query.backup); // Add backup topic if backup parameter exist in querystring
 
     var data = {};
     data.body = req.body;
     // Extract selected headers
     console.log('req.query');
-    console.log(req.query.heap);
-    const headersFilter = req.query.headers || headers;
+    console.log(req);
+    const headersFilter = req.query.headers;// || headers;
     
     data.headers = headersFilter.split(',').reduce(function(o, k) { o[k] = req.headers[k]; return o; }, {});
 
@@ -72,11 +74,11 @@ async function publish(req, res){
         timestamp :  new Date().toISOString(),
         uuid : uuidv4()
     };
-    attributes = {...req.query,...meta};
+    var attributes = {...req.query,...meta};
     delete attributes.headers;
     delete attributes.api_key;
     
-    var msgData = Buffer.from(JSON.stringify(beacon));
+    var msgData = Buffer.from(JSON.stringify(data));
     
     // Publish to topics defined by topics query parameter (i.e. &topics=dummy,backup,yet-a-topic)
     await Promise.all(topics.map(currentTopic => pubsub.topic(currentTopic).publish(msgData, attributes)))
