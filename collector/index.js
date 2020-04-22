@@ -34,7 +34,7 @@ var corsOptionsDelegate = function (req, callback) {
 const app = express();
 app.set('trust proxy', true);
 app.options('*', cors(corsOptionsDelegate)); // Pre-flight
-app.post('/namespace/:namespace/name/:name', cors(corsOptionsDelegate), apiPost); // namespace/com.google.analytics.v1/name/Hit
+app.post('/namespace/:namespace/name/:name', cors(corsOptionsDelegate), apiPost);
 app.get('/headers', cors(corsOptionsDelegate), apiHeaders);
 app.get('/keepalive', cors(corsOptionsDelegate), apiKeepAlive);
 
