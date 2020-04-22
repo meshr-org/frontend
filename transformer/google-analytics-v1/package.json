@@ -1,5 +1,5 @@
 {
-  "name": "transformer",
+  "name": "meshr-transformer-google-analytics-v1",
   "version": "0.0.1",
   "description": "cloud function to collect transform data before sending to processing as json",
   "main": "index.js",
