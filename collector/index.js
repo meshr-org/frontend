@@ -14,19 +14,17 @@ const express = require('express');
 var cors = require('cors');
 
 const apiKeys = process.env.API_KEYS;
-const allowOrigins = process.env.ALLOW_ORIGINS || '';
-const headers = process.env.HEADERS; // ex. 'x-forwarded-for,user-agent,x-appengine-city,x-appengine-citylatlong,x-appengine-country,x-appengine-region'
+const allowOrigins = process.env.ALLOW_ORIGINS;
 const pubsub = new PubSub();
 
 // CORS
-// client request -> check allowed origins
-// server request -> check api_key
 var corsOptionsDelegate = function (req, callback) {
     var corsOptions;
     const origin = req.header('Origin');
-    if (allowOrigins.split(',').indexOf(origin) !== -1 || (!origin && apiKeys != undefined && apiKeys.split(',').indexOf(req.query.api_key) !== -1)) {
-        corsOptions = { origin: true }
-        callback(null, corsOptions)
+    if ((allowOrigins != undefined && allowOrigins.split(',').indexOf(origin) !== -1) || // client request -> check allowed origins
+        (!origin && apiKeys != undefined && apiKeys.split(',').indexOf(req.query.api_key) !== -1)) { // server request -> check api_key
+            corsOptions = { origin: true }
+            callback(null, corsOptions)
     } else {
       callback(new Error('Not allowed by CORS'));
     }
@@ -65,7 +63,7 @@ async function publish(req, res){
     // Pubsub message body
     var body = {};
     body.data = req.body;    
-    const headersFilter = req.query.headers; // Keep selected headers
+    const headersFilter = req.query.headers; // Keep selected headers ex. 'x-forwarded-for,user-agent,x-appengine-city,x-appengine-citylatlong,x-appengine-country,x-appengine-region'
     body.headers = headersFilter.split(',').reduce(function(o, k) { o[k] = req.headers[k]; return o; }, {});
     var msgBody = Buffer.from(JSON.stringify(body));
 
