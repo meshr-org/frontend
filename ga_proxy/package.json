@@ -4,7 +4,7 @@
   "description": "cloud function to collect data from GET and POST requests and publish to coresponding pubsub topic",
   "main": "index.js",
   "scripts": {
-    "start": "functions-framework --target=collector"
+    "start": "functions-framework --target=ga_proxy"
   },
   "repository": {
     "type": "git",

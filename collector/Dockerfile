@@ -1,7 +1,11 @@
-# Use the official lightweight Node.js 12 image.
+# Use the official lightweight Node.js 10 image.
 # https://hub.docker.com/_/node
-#FROM node:10-slim
 FROM node:10-alpine
+
+ARG API_KEYS;
+ENV API_KEYS=$API_KEYS
+ARG ALLOW_ORIGINS;
+ENV ALLOW_ORIGINS=$ALLOW_ORIGINS
 
 # Create and change to the app directory.
 WORKDIR /usr/src/app

@@ -7,109 +7,94 @@
 
 'use strict';
 
-const mainTopic = process.env.TOPIC || 'tmp';
-const allowOrigin = process.env.ALLOW_ORIGIN || '*';
-//const platform = process.env.PLATFORM || 'CF';
-
-// import the Google Cloud Pubsub client library
+// imports
 const {PubSub} = require('@google-cloud/pubsub');
-const pubsub = new PubSub();
-const topic = pubsub.topic(mainTopic);
-
-const TRANSPARENT_GIF_BUFFER = Buffer.from('R0lGODlhAQABAIAAAP///wAAACwAAAAAAQABAAACAkQBADs=', 'base64');
-
-const util = require('util');
 const uuidv4 = require('uuid/v4');
-
-
 const express = require('express');
 var cors = require('cors');
+
+const apiKeys = process.env.API_KEYS;
+const allowOrigins = process.env.ALLOW_ORIGINS;
+const pubsub = new PubSub();
+
+// CORS
+var corsOptionsDelegate = function (req, callback) {
+    var corsOptions;
+    const origin = req.header('Origin');
+    if ((allowOrigins != undefined && allowOrigins.split(',').indexOf(origin) !== -1) || // client request -> check allowed origins
+        (!origin && apiKeys != undefined && apiKeys.split(',').indexOf(req.query.api_key) !== -1)) { // server request -> check api_key
+            corsOptions = { origin: true }
+            callback(null, corsOptions)
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+}
 
 // Create an Express object and routes (in order)
 const app = express();
 app.set('trust proxy', true);
-var corsOptions = {
-  origin: function (origin, callback) {
-    if (allowOrigin === '*' || allowOrigin.split(',').indexOf(origin) !== -1 || !origin) {
-      callback(null, true)
-    } else {
-      callback(new Error('Not allowed by CORS'))
-    }
-  }
-}
-app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));
-app.get('/topic/:topicId', apiGet);
-app.post('/topic/:topicId', apiPost);
-app.post('/cookies', apiCookie);
-app.get('/headers', apiHeaders);
-app.get('/keepalive', apiKeepAlive);
-
-
+app.options('*', cors(corsOptionsDelegate)); // Pre-flight
+app.post('/namespace/:namespace/name/:name', cors(corsOptionsDelegate), apiPost);
+app.get('/headers', cors(corsOptionsDelegate), apiHeaders);
+app.get('/keepalive', cors(corsOptionsDelegate), apiKeepAlive);
 
 // Set our GCF handler to our Express app.
 exports.collector = app;
 
 async function publish(req, res){
-    var payload = {};
-    payload.body = req.body;
-    payload.query = req.query;
-    payload.headers = req.headers;
-    var attributes = {
-        topic : req.params.topicId,
+    
+    // Pubsub topics to publish message on
+    var topic = req.params.namespace.concat('.', req.params.name, '-collector');
+    var topics =[topic];
+    if(req.query.backup) topics.push(req.query.backup); // Add backup topic if backup parameter exist in querystring
+
+    // Pubsub message attributes
+    var meta = {
+        namespace : req.params.namespace,
+        name : req.params.name,
+        topic : topic,
         timestamp :  new Date().toISOString(),
         uuid : uuidv4()
     };
-    var msgData = Buffer.from(JSON.stringify(payload));
-    const messageId = await topic
-        .publish(msgData, attributes)
-        .catch(function(err) {
-            console.error(err.message);
-            res.status(400).end(`error when publishing data object to pubsub`); 
-        });
-        console.log(`Message ${messageId} published.`);
+    var attributes = {...req.query,...meta};
+    delete attributes.headers;
+    delete attributes.api_key;
+
+    // Pubsub message body
+    var body = {};
+    body.data = req.body;    
+    const headersFilter = req.query.headers; // Keep selected headers ex. 'x-forwarded-for,user-agent,x-appengine-city,x-appengine-citylatlong,x-appengine-country,x-appengine-region'
+    body.headers = headersFilter.split(',').reduce(function(o, k) { o[k] = req.headers[k]; return o; }, {});
+    var msgBody = Buffer.from(JSON.stringify(body));
+
+    // Publish to topics
+    let messageIds = await Promise.all(topics.map(currentTopic => pubsub.topic(currentTopic).publish(msgBody, attributes)))
+    .catch(function(err) {
+        console.error(err.message);
+        res.status(400).end(`error when publishing data object to pubsub`);
+    });
+    //console.log(messageIds);
 }
 
-async function apiCookie(req, res) {
-    try{
-        (Array.isArray(req.body) ? req.body : [req.body])
-            .forEach(cookie => {res.cookie(cookie.name, cookie.value, cookie.options)});
-        res.status(204).end();
-    }catch(error) {
-        console.error(error);
-        res.status(400).end(`error when rewriting cookies`);
-    }
-}
-
-async function apiGet(req, res) {
-    if(req.params.topicId !== undefined){
-        await publish(req, res);
-        if(!res.headersSent){
-            res.writeHead(200, { 'Content-Type': 'image/gif' });
-            res.end(TRANSPARENT_GIF_BUFFER, 'binary');
-        }
-    }else{
-        console.error("topic path param undefined");
-        res.status(400).end('Topic path param undefined. pattern should be https://host/topic/:topicID');    
-    }
-}
-
+// Respond with headers
 async function apiHeaders(req, res) {
     res.json(req.headers).end()
 }
 
+// Schedule requests to this endpoint keep instance warm
 async function apiKeepAlive(req, res) {
     res.status(204).end();
 }
 
+// Collect request (POST) and publish data on pubsub
 async function apiPost(req, res) {
-    if(req.params.topicId !== undefined){
+    if(req.params.namespace !== undefined && req.params.name !== undefined){ // Check if required params exist
         await publish(req, res);
         if(!res.headersSent){
             res.status(204).end();
         }
     }else{
-        console.error("topic path param undefined");
-        res.status(400).end('Topic path param undefined. pattern should be https://host/topic/:topicID');    
+        console.error("Path param undefined");
+        res.status(400).end('Path param undefined. Pattern should be https://host/namespace/:namespace(*)/name/:name/');    
     }
 }
