@@ -1,5 +1,5 @@
 # Test locally
-export ALLOW_ORIGINS=...
+export ALLOW_ORIGINS=*
 export API_KEYS=123
 npm start
 curl localhost:8080/property/tmp?foo=bar

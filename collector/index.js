@@ -44,36 +44,33 @@ exports.collector = app;
 async function publish(req, res){
     
     // Pubsub topics to publish message on
-    var topic = req.params.namespace.concat('.', req.params.name, '-collector');
+    var topic = req.params.namespace.concat('.', req.params.name, '-RAW');
     var topics =[topic];
-    if(req.query.backup) topics.push(req.query.backup); // Add backup topic if backup parameter exist in querystring
 
     // Pubsub message attributes
-    var meta = {
+    var attributes = {
         namespace : req.params.namespace,
         name : req.params.name,
         topic : topic,
         timestamp :  new Date().toISOString(),
         uuid : uuidv4()
     };
-    var attributes = {...req.query,...meta};
-    delete attributes.headers;
-    delete attributes.api_key;
 
     // Pubsub message body
-    var body = {};
-    body.data = req.body;    
-    const headersFilter = req.query.headers; // Keep selected headers ex. 'x-forwarded-for,user-agent,x-appengine-city,x-appengine-citylatlong,x-appengine-country,x-appengine-region'
-    body.headers = headersFilter.split(',').reduce(function(o, k) { o[k] = req.headers[k]; return o; }, {});
-    var msgBody = Buffer.from(JSON.stringify(body));
+    var data = {};
+    data.payload = req.body;
+    data.headers = req.headers;
+    data.queryString = req.query;  
+    console.log(data); 
+    console.log(attributes);  
 
     // Publish to topics
-    let messageIds = await Promise.all(topics.map(currentTopic => pubsub.topic(currentTopic).publish(msgBody, attributes)))
+    let messageIds = await Promise.all(topics.map(currentTopic => pubsub.topic(currentTopic).publish(Buffer.from(JSON.stringify(data)), attributes)))
     .catch(function(err) {
         console.error(err.message);
         res.status(400).end(`error when publishing data object to pubsub`);
     });
-    //console.log(messageIds);
+    console.log(messageIds);
 }
 
 // Respond with headers
